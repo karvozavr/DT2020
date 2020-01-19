@@ -1,5 +1,7 @@
-\import lect02 \hiding (+,*)
-\open Nat \hiding (-,div) -- Здесь лежат + и *.
+\import lect02 \hiding (+, *)
+\open Nat \hiding (-, div)
+
+-- Здесь лежат + и *.
 
 -- 1. Определите функцию if, аналогичную следующей функции:
 {- Haskell:
@@ -8,22 +10,62 @@
    if False _ e = e
 -}
 
+\func if {A : \Type} (cond : Bool) (t e : A) : A \elim cond
+  | true => t
+  | false => e
+
 -- 2. Определите || через if.
 
-\func \infixr 2 || (x y : Bool) : Bool => {?}
+\func \infixr 2 || (x y : Bool) : Bool => if x true y
 
 -- 3. Определите возведение в степень и факториал для натуральных чисел.
 
-\func \infixr 8 ^ (x y : Nat) => {?}
+\func \infixr 8 ^ (x y : Nat) : Nat => power 1 x y
+  \where
+    \func power (acc x y : Nat) : Nat \elim y
+      | zero => acc
+      | suc z => power (acc * x) x z
 
-\func fac (x : Nat) => {?}
+\func fac (x : Nat) : Nat => fac' 1 x
+  \where
+    \func fac' (acc x : Nat) : Nat \elim x
+      | zero => acc
+      | suc z => fac' (acc * (suc z)) z
 
 -- 4. Определите mod и gcd.
 
-\func mod (x y : Nat) => {?}
+\func mod (x y : Nat) => x - ((x `div` y) * y)
 
-\func gcd (x y : Nat) => {?}
+\func eq (x y : Nat) : Bool \elim x, y
+  | zero, y => false
+  | x, zero => false
+  | suc x, suc y => eq x y
+
+\func gcd (x y : Nat) : Nat => gcd' (x + y) x y
+  \where
+    \func gcd' (s x y : Nat) : Nat \elim s, x, y
+      | zero , _, _ => zero
+      | _, zero, y => y
+      | _, x, zero => x
+      | (suc s), x, y => if (eq x y) x (if (y < x) (gcd' s (x - y) y) (gcd' s x (y - x)))
 
 -- 5. Определите (полиморфный) reverse для списков.
 
+\func reverse {A : \Type} (l : List A) => reverse' nil l
+  \where
+    \func reverse' {A : \Type} (acc l : List A) : List A \elim l
+      | nil => acc
+      | cons x xs => reverse' (cons x acc) xs
+
 -- 6. Реализуйте любой (but choose wisely) алгоритм сортировки. Функцию сравнения можно принимать в качестве аргумента.
+
+\func inssort {A : \Type} (less : A -> A -> Bool) (l : List A) : List A => sort less l nil
+  \where {
+    \func sort {A : \Type} (less : A -> A -> Bool) (l acc : List A) : List A \elim l
+      | nil => acc
+      | cons x xs => sort less xs (insert less acc x)
+
+    \func insert {A : \Type} (less : A -> A -> Bool) (l : List A) (elem : A): List A \elim l
+      | nil => cons elem nil
+      | cons x xs => if (less x elem) (cons x (insert less xs elem)) (cons elem (cons x xs))
+  }
