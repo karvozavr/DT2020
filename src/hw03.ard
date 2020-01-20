@@ -1,41 +1,65 @@
 \import Utils
+\open Nat
 
 -- 1. Докажите ассоциативность && и ||.
 
-\func &&-assoc (x y z : Bool) : (x && y) && z = x && (y && z) => {?}
+\func &&-assoc (x y z : Bool) : (x && y) && z = x && (y && z) \elim x
+  | true => idp
+  | false => idp
 
-\func ||-assoc (x y z : Bool) : (x || y) || z = x || (y || z) => {?}
+\func ||-assoc (x y z : Bool) : (x || y) || z = x || (y || z) \elim x
+  | true => idp
+  | false => idp
 
 -- 2. Докажите, что fac 3 равно 6.
+
+\func fac (x : Nat) : Nat => fac' 1 x
+  \where
+    \func fac' (acc x : Nat) : Nat \elim x
+      | zero => acc
+      | suc z => fac' (acc * (suc z)) z
+
+\func fac3Is6 : fac 3 = 6 => aux
+  \where
+    \func aux : fac.fac' 1 3 = 6 => idp
 
 -- 3. Докажите следующие пропозициональные тавтологии.
 
 -- t1 : (P and Q -> R) -> P -> Q -> R
-\func t1 {P Q R : \Type} (f : \Sigma P Q -> R) (p : P) (q : Q) : R => {?}
+\func t1 {P Q R : \Type} (f : \Sigma P Q -> R) (p : P) (q : Q) : R => f (p, q)
 
 -- t2 : (P -> R) -> (Q -> R) -> P or Q -> R
-\func t2 {P Q R : \Type} (f : P -> R) (g : Q -> R) (h : Either P Q) : R => {?}
+\func t2 {P Q R : \Type} (f : P -> R) (g : Q -> R) (h : Either P Q) : R \elim h
+  | inl a => f a
+  | inr b => g b
 
 -- t3 : ((P -> Q -> R) -> P) -> (P -> R) -> R
-\func t3 {P Q R : \Type} (f : (P -> Q -> R) -> P) (g : P -> R) : R => {?}
+\func t3 {P Q R : \Type} (f : (P -> Q -> R) -> P) (g : P -> R) : R => g (f (\lam p _ => g p))
 
 -- 4. Сформулируйте и докажите следующие пропозициональные тавтологии.
 
 -- t4 : (P -> Q -> R) -> P and Q -> R
--- t5 : (P or Q -> P and Q) -> (P -> Q) and (Q -> P)
+\func t4 {P Q R : \Type} (f : P -> Q -> R) (x : \Sigma P Q) : R => f x.1 x.2
+
+-- t5 : (P or Q -> P and Q) -> (P -> Q) and (Q -> P)in
+\func t5 {P Q R : \Type} (f : (Either P Q) -> \Sigma P Q) : (\Sigma (P -> Q) (Q -> P)) => {?}
+
 -- t6 : ((((P -> Q) -> P) -> P) -> Q) -> Q
+\func t6 {P Q : \Type} (f : ((P -> Q) -> (P) -> P) -> Q) : Q => f (\lam x => (\lam y => y))
 
 -- 5. Докажите следующие утверждения.
 
 -- s1 : Если для любого x : Nat верно P(x), то существует x : Nat для которого P(x) верно.
-\func s1 (P : Nat -> \Type) (h : \Pi (x : Nat) -> P x) : \Sigma (x : Nat) (P x) => {?}
+\func s1 (P : Nat -> \Type) (h : \Pi (x : Nat) -> P x) : \Sigma (x : Nat) (P x) => (1, h 1)
 
 -- s2 : Если не существует x : Nat такого, что верно P(x), то P(3) не верно.
-\func s2 (P : Nat -> \Type) (h : \Sigma (x : Nat) (P x) -> Empty) : P 3 -> Empty => {?}
+\func s2 (P : Nat -> \Type) (h : \Sigma (x : Nat) (P x) -> Empty) : P 3 -> Empty => \lam p => h (3, p)
 
 -- 6. Сформулируйте и докажите следующие утверждения.
 
 -- s3 : Если для всех x : Nat верно, что P(x) влечет Q(x), и существует x : Nat для которого верно P(x), то существует x : Nat для которого верно Q(x).
+\func s3 (P Q : Nat -> \Type) (h : \Pi (x : Nat) -> \Sigma (P(x) -> Q(x)) (\Sigma (y : Nat) (P y))) : \Sigma (z : Nat) (Q z)
+  => (h 1).1
 
 -- s4 : Если для всех x : Nat либо не верно P(x), либо не верно Q(x), то P(3) влечет, что Q(3) не верно.
 

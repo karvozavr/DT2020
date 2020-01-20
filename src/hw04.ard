@@ -11,20 +11,48 @@
   | suc x, 0 => false
   | suc x, suc y => x < y
 
-\func lookup => {?}
+\func lookup {A : \Type} (n : Nat) (xs : List A) (proof : T (n < length xs)) : A \elim n, xs
+  | 0, cons a l => a
+  | suc n, cons a l => lookup n l proof
 
 -- 2. Реализуйте аналоги функции replicate для vec и Vec (эта функция создает список заданной длины, состоящий из повторений данного элемента).
 
+\func replicate {A : \Type} (x : A) (n : Nat) : Vec A n  \elim n
+  | 0 => vnil
+  | suc n => vcons x (replicate x n)
+
+\func replicate' {A : \Type} (x : A) (n : Nat) : vec A n \elim n
+  | 0 => ()
+  | suc n => (x, replicate' x n)
+
 -- 3. Реализуйте аналоги функции map для vec и Vec.
+
+\func map {A B : \Type} {n : Nat} (f : A -> B) (xs : Vec A n) : Vec B n \elim n, xs
+  | 0, vnil => vnil
+  | suc n, vcons a v => vcons (f a) (map f v)
+
+\func map' {A B : \Type} {n : Nat} (f : A -> B) (xs : vec A n) : vec B n \elim n, xs
+  | 0, xs => ()
+  | suc n, xs => ((f xs.1), map' f xs.2)
 
 -- 4. Реализуйте аналоги функции zipWith для vec и Vec.
 --    Функция должна принимать вектора одинаковой длины.
+
+\func zipWith {A B C : \Type} (f : A -> B -> C) {n : Nat} (la : Vec A n) (lb : Vec B n): Vec C n \elim n, la, lb
+  | 0, vnil, vnil => vnil
+  | suc n, vcons a v1, vcons b v2 => vcons (f a b) (zipWith f v1 v2)
+
+\func zipWith' {A B C : \Type} (f : A -> B -> C) {n : Nat} (la : vec A n) (lb : vec B n): vec C n \elim n, la, lb
+  | 0, v1, v2 => ()
+  | suc n, v1, v2 => ((f v1.1 v2.1), (zipWith' f v1.2 v2.2))
 
 -- 5. Функции Fin n → A соответствуют спискам элементов A длины n.
 --    Функция, преобразующая Vec A n в Fin n → A, была реализована на лекции.
 --    Реализуйте обратную функцию.
 
-\func coin {A : \Type} {n : Nat} (f : Fin n -> A) : Vec A n => {?}
+\func coin {A : \Type} {n : Nat} (f : Fin n -> A) : Vec A n \elim n
+  | 0 => vnil
+  | suc n => vcons {?} (coin f)
 
 -- 6. Определите тип матриц и ряд функций над ними.
 
