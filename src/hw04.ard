@@ -52,39 +52,72 @@
 
 \func coin {A : \Type} {n : Nat} (f : Fin n -> A) : Vec A n \elim n
   | 0 => vnil
-  | suc n => vcons {?} (coin f)
+  | suc n => vcons (f fzero) (coin (\lam x => f (fsuc x)))
 
 -- 6. Определите тип матриц и ряд функций над ними.
 
-\func Mat (A : \Type) (n m : Nat) : \Type => {?}
+\func Mat (A : \Type) (n m : Nat) : \Type => Vec (Vec A m) n
 
 -- диагональная матрица с элементами e на диагонали и z на остальных позициях.
 
-\func diag {A : \Type} (z e : A) (n : Nat) : Mat A n n => {?}
+\func diag {A : \Type} (z e : A) (n : Nat) : Mat A n n \elim n
+  | 0 => vnil
+  | suc n => vcons (vcons e (replicate z n)) (map (vcons z) (diag z e n))
 
 -- транспонирование матриц
 
-\func transpose {A : \Type} {n m : Nat} (M : Mat A n m) : Mat A m n => {?}
+\func transpose {A : \Type} {n m : Nat} (M : Mat A n m) : Mat A m n \elim n, M
+  | 0, vnil => replicate vnil m
+  | suc n, vcons a M => zipWith (\lam x y => vcons x y) a (transpose M)
 
 -- сложение матриц
 
-\func matAdd {A : \Type} (add : A -> A -> A) (n m : Nat) (M N : Mat A n m) : Mat A n m => {?}
+\func matAdd {A : \Type} {n m : Nat} (add : A -> A -> A) (M N : Mat A n m) : Mat A n m \elim n, M, N
+  | 0, vnil, vnil => vnil
+  | suc n, vcons v1 M, vcons v2 N => vcons (zipWith add v1 v2) (matAdd add M N)
+
+\func vecadd {A : \Type} {n : Nat} (add : A -> A -> A) (v1 v2 : Vec A n) : Vec A n \elim n, v1, v2
+  | 0, vnil, vnil => vnil
+  | suc n, vcons a v, vcons a1 v1 => vcons (add a a1) (vecadd add v v1)
+
+\func vecsum {A : \Type} {n : Nat} (add : A -> A -> A) (z : A)  (v : Vec A n) : A \elim n, v
+  | 0, vnil => z
+  | suc n, vcons a v => add a (vecsum add z v)
 
 -- умножение матриц
-
 -- z ─ нейтральный элемент по сложению.
-\func matMul {A : \Type} (z : A) (add mul : A -> A -> A) (n m k : Nat) (M : Mat A n m) (N : Mat A m k) : Mat A n k => {?}
+
+\func matMul {A : \Type} {n m k : Nat} (z : A) (add mul : A -> A -> A)  (M : Mat A n m) (N : Mat A m k) : Mat A n k \elim n,  M
+  | 0, vnil => vnil
+  | suc n, vcons a M => vcons (map (\lam x => vecsum add z (vecadd mul a x)) (transpose N)) (matMul z add mul M N)
 
 -- 7. Определите тип CTree A n полных бинарных деревьев высоты ровно n, которые хранят элементы только во внутренних узлах, но не в листьях.
 --    Высота листа равна 0.
 
-\data CTree (A : \Type) (n : Nat)
+\data CTree (A : \Type) (n : Nat) \elim n
+  | 0 => cleaf
+  | suc n => ctree A (CTree A n) (CTree A n)
 
 -- 8. Определите тип Tree A n бинарных деревьев высоты не больше n, которые хранят элементы только во внутренних узлах, но не в листьях.
 --    Высота листа равна 0.
 
-\data Tree (A : \Type) (n : Nat)
+\data Tree (A : \Type) (n : Nat) \elim n
+  | 0 => leaf
+  | suc n => {
+  | tree A (Tree A n) (Tree A n)
+  | treel A (Tree A n)
+  | treer A (Tree A n)
+  }
 
 -- определите функцию, возвращающую высоту дерева.
 
-\func height {A : \Type} (n : Nat) (t : Tree A n) : Fin (suc n) => {?}
+\func height {A : \Type} (n : Nat) (t : Tree A n) : Fin (suc n) \elim n, t
+  | 0, leaf => fzero
+  | suc n, tree _ t t1 => fsuc (max (height n t) (height n t1))
+  | suc n, treel _ t => fsuc (height n t)
+  | suc n, treer _ t => fsuc (height n t)
+  \where
+    \func max {n : Nat} (a b : Fin n) : Fin n => \case (toNat a < toNat b) \with {
+      | true => a
+      | false => b
+    }
