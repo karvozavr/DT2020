@@ -20,7 +20,7 @@
       | zero => acc
       | suc z => fac' (acc * (suc z)) z
 
-\func fac3Is6 : fac 3 = 6 => aux
+\func fac3Is6 : fac 3 = 6 => aux -- можно и без вспомогательной функции
   \where
     \func aux : fac.fac' 1 3 = 6 => idp
 
@@ -53,6 +53,7 @@
 
 -- t6 : ((((P -> Q) -> P) -> P) -> Q) -> Q
 
+-- Но скобки же расставлены не как в задании!
 \func t6 {P Q : \Type} (f : ((P -> Q) -> (P) -> P) -> Q) : Q => f (\lam x => (\lam y => y))
 
 -- 5. Докажите следующие утверждения.
