@@ -4,18 +4,20 @@
 -- 1. Определите конгруэнтность для функций двух аргументов через transport.
 --    Можно использовать любые функции, определенные через transport.
 
-\func pmap2 {A B C : \Type} (f : A -> B -> C) {a a' : A} (p : a = a') {b b' : B} (q : b = b') : f a b = f a' b' => {?}
+\func pmap2 {A B C : \Type} (f : A -> B -> C) {a a' : A} (p : a = a') {b b' : B} (q : b = b') : f a b = f a' b' =>
+  transport (\lam x => (f a) b = (f x) b') p (pmap (f a) q)
 
 -- 2. Докажите, что transport выражается через pmap и repl и наоборот.
 
 -- repl говорит, что если у нас есть два равных типа, то у нас есть функция из одного во второй.
 -- Определите repl через transport.
 
-\func repl {A B : \Type} (p : A = B) (a : A) : B => {?}
+\func repl {A B : \Type} (p : A = B) (a : A) : B => transport (\lam x => x) p a
 
 -- Определите transport через repl и pmap.
 
-\func transport' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' => {?}
+\func transport' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' =>
+  repl (pmap B p) b
 
 -- 3. Докажите, что reverse (reverse xs) = xs, где reverse определен через ++.
 
@@ -30,7 +32,16 @@
   | cons x xs => reverse xs ++ cons x nil
 
 -- Это утверждение будет полезно для доказательства.
-\func reverse++ {A : \Type} (xs ys : List A) : reverse (xs ++ ys) = reverse ys ++ reverse xs => {?}
+
+\func ++-assoc {A : \Type} (xs ys zs : List A) : (xs ++ ys) ++ zs = xs ++ (ys ++ zs) \elim xs
+  | nil => idp
+  | cons a l => pmap (cons a) (++-assoc l ys zs)
+
+\func reverse++ {A : \Type} (xs ys : List A) : reverse (xs ++ ys) = reverse ys ++ reverse xs \elim xs
+  | nil => {?}
+  | cons a l => {?}
+  \where
+    \func rv' {A : \Type} (xs : List A) : reverse xs = reverse xs ++ nil => {?}
 
 \func reverse-isInvolutive {A : \Type} (xs : List A) : reverse (reverse xs) = xs => {?}
 
@@ -85,7 +96,7 @@
 
 -- 11. Докажите, что fac не равен suc.
 
-\open Nat(*)
+\open Nat (*)
 
 \func fac (n : Nat) : Nat
   | 0 => 1

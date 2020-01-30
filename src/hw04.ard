@@ -104,19 +104,16 @@
 -- Зачем нужно 3 конструктора в случае suc n?
 \data Tree (A : \Type) (n : Nat) \elim n
   | 0 => leaf
-  | suc n => {
-  | tree A (Tree A n) (Tree A n)
-  | treel A (Tree A n)
-  | treer A (Tree A n)
-  }
+  | suc n => { | tree A (Tree A n) (Tree A n) | leaf }
+
 
 -- определите функцию, возвращающую высоту дерева.
 
 \func height {A : \Type} (n : Nat) (t : Tree A n) : Fin (suc n) \elim n, t
   | 0, leaf => fzero
   | suc n, tree _ t t1 => fsuc (max (height n t) (height n t1))
-  | suc n, treel _ t => fsuc (height n t)
-  | suc n, treer _ t => fsuc (height n t)
+  | suc n, tree _ t leaf => fsuc (height n t)
+  | suc n, tree _ leaf t => fsuc (height n t)
   \where
     \func max {n : Nat} (a b : Fin n) : Fin n => \case (toNat a < toNat b) \with {
       | true => a
