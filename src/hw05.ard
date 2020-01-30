@@ -38,18 +38,74 @@
   | cons a l => pmap (cons a) (++-assoc l ys zs)
 
 \func reverse++ {A : \Type} (xs ys : List A) : reverse (xs ++ ys) = reverse ys ++ reverse xs \elim xs
-  | nil => {?}
-  | cons a l => {?}
+  | nil => rv' (reverse ys)
+  | cons x xs =>
+    ((reverse (xs ++ ys)) ++ cons x nil)         ==< pmap (\lam t => t ++ cons x nil) (reverse++ xs ys) >==
+    ((reverse ys ++ reverse xs) ++ cons x nil)   ==< ++-assoc (reverse ys) (reverse xs) (cons x nil) >==
+    (reverse ys ++ ((reverse xs) ++ cons x nil)) `qed
   \where
-    \func rv' {A : \Type} (xs : List A) : reverse xs = reverse xs ++ nil => {?}
+    \func rv' {A : \Type} (xs : List A) : xs = xs ++ nil \elim xs
+      | nil => idp
+      | cons x xs => pmap (cons x) (rv' xs)
 
-\func reverse-isInvolutive {A : \Type} (xs : List A) : reverse (reverse xs) = xs => {?}
+\func reverse-isInvolutive {A : \Type} (xs : List A) : reverse (reverse xs) = xs \elim xs
+  | nil => idp
+  | cons x xs =>
+    (reverse (reverse xs ++ cons x nil)) ==< reverse++ (reverse xs) (cons x nil) >==
+    (cons x (reverse (reverse xs)))      ==< pmap (cons x) (reverse-isInvolutive xs) >==
+    (cons x xs) `qed
 
 -- 4. Докажите дистрибутивность умножения над сложением для натуральных чисел.
 
-\func ldistr (n m k : Nat) : n * (m + k) = n * m + n * k => {?}
+\func +-assoc (n m k : Nat) : (n + m) + k = n + (m + k) \elim k
+  | 0 => idp
+  | suc k => pmap suc (+-assoc n m k)
 
-\func rdistr (n m k : Nat) : (m + k) * n = m * n + k * n => {?}
+\func +-comm (n m : Nat) : n + m = m + n
+  | 0, 0 => idp
+  | 0, suc m => pmap suc (+-comm 0 m)
+  | suc n, 0 => pmap suc (+-comm n 0)
+  | suc n, suc m => pmap suc (
+    suc n + m   ==< +-comm (suc n) m >==
+    suc (m + n) ==< pmap suc (sym (+-comm n m)) >==
+    suc (n + m) ==< +-comm n (suc m) >==
+    suc m + n   `qed)
+
+\func ldistr (n m k : Nat) : n * (m + k) = n * m + n * k \elim m, k
+  | 0, 0 => idp
+  | 0, suc k =>
+    n * (0 + k) + n ==< pmap (\lam x => n * x + n) (+-comm 0 k) >==
+    n * k + n       ==< sym (+-comm 0 (n * k + n)) >==
+    0 + (n * k + n) `qed
+  | suc m, 0 => idp
+  | suc m, suc k => sym (
+    (n * m + n) + (n * k + n)   ==< +-assoc (n * m) n (n * k + n) >==
+    (n * m) + (n + (n * k + n)) ==< pmap (\lam x => (n * m) + x) (+-comm n (n * k + n)) >==
+    n * m + ((n * k + n) + n)   ==< sym (+-assoc (n * m) (n * k + n) n) >==
+    n * m + (n * k + n) + n     ==< pmap (\lam x => x + n)
+                                         (
+                                           n * m + (n * k + n) ==< pmap (\lam x => n * m + x) (+-comm (n * k) n) >==
+                                           n * m + (n + n * k) ==< sym (+-assoc (n * m) n (n * k)) >==
+                                           n * (suc m) + n * k ==< sym (ldistr n (suc m) k) >==
+                                           n * (suc m + k) `qed
+                                         ) >==
+    n * (suc m + k) + n `qed
+  )
+
+\func rdistr (n m k : Nat) : (m + k) * n = m * n + k * n \elim n
+  | 0 => idp
+  | suc n =>
+    (m + k) * n + (m + k)     ==< pmap (\lam x => x + (m + k)) (rdistr n m k) >==
+    (m * n + k * n) + (m + k) ==< +-assoc (m * n) (k * n) (m + k) >==
+    m * n + (k * n + (m + k)) ==< pmap (\lam x => m * n + x)
+                                       (
+                                         k * n + (m + k) ==< sym (+-assoc (k * n) m k) >==
+                                         (k * n + m) + k ==< pmap (\lam x => x + k) (+-comm (k * n) m) >==
+                                         (m + k * n) + k ==< +-assoc m (k * n) k >==
+                                         m + (k * n + k) `qed
+                                       ) >==
+    m * n + (m + (k * n + k)) ==< sym (+-assoc (m * n) m (k * n + k)) >==
+    m * n + m + (k * n + k) `qed
 
 {-
 -- rdistr можно реализовать через ldistr и *-comm.
