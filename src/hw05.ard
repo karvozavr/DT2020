@@ -131,11 +131,42 @@
   | true => false
   | false => true
 
-\func notNotId : (\lam x => not (not x)) = (\lam x => x) => {?}
+\func notNotId : (\lam x => not (not x)) = (\lam x => x) => path (\lam i a => not-idp a @ i)
+  \where
+    \func not-idp (x : Bool) : not (not x) = x \elim x
+      | true => idp
+      | false => idp
 
 -- 6. Определите факториал через Nat-rec.
 
+\func Nat-rec (P : \Type)
+              (z : P)
+              (s : Nat -> P -> P)
+              (x : Nat) : P
+\elim x
+  | zero => z
+  | suc n => s n (Nat-rec P z s n)
+
+\func factorial (n : Nat) : Nat => Nat-rec Nat 1 (\lam x r => (suc x) * r) n
+
+\func fact1 : factorial 0 = 1 => idp
+
+\func fact2 : factorial 1 = 1 => idp
+
+\func fact3 : factorial 3 = 6 => idp
+
 -- 7. Докажите ассоциативность сложения для натуральных чисел через Nat-elim.
+
+\func Nat-elim (P : Nat -> \Type)
+               (z : P zero)
+               (s : \Pi (n : Nat) -> P n -> P (suc n))
+               (x : Nat) : P x
+\elim x
+  | zero => z
+  | suc n => s n (Nat-elim P z s n)
+
+\func +-assoc' (n m k : Nat) : (n + m) + k = n + (m + k) =>
+  Nat-elim (\lam k => (n + m) + k = n + (m + k)) idp (\lam n pn => pmap suc pn) k
 
 -- 8. Определите рекурсор и элиминатор для D.
 
@@ -144,13 +175,60 @@
   | con2 D D
   | con3 (Nat -> D)
 
+\func D-rec (P : \Type)
+            (c1 : Nat -> P)
+            (c2 : D -> D -> P -> P -> P)
+            (c3 : (Nat -> D) -> (Nat -> P) -> P)
+            (x : D) : P
+\elim x
+  | con1 n => (c1 n)
+  | con2 d1 d2 => c2 d1 d2 (D-rec P c1 c2 c3 d1) (D-rec P c1 c2 c3 d2)
+  | con3 f => c3 f (\lam x => D-rec P c1 c2 c3 (f x))
+
+\func D-elim (P : D -> \Type)
+             (c1 : \Pi (n : Nat) -> P (con1 n))
+             (c2 : \Pi (d1 d2 : D) -> P d1 -> P d2 -> P (con2 d1 d2))
+             (c3 : \Pi (f : Nat -> D) -> (\Pi (n : Nat) -> P (f n)) -> P (con3 f))
+             (x : D) : P x
+\elim x
+  | con1 n => (c1 n)
+  | con2 d1 d2 => c2 d1 d2 (D-elim P c1 c2 c3 d1) (D-elim P c1 c2 c3 d2)
+  | con3 f => c3 f (\lam x => D-elim P c1 c2 c3 (f x))
+
 -- 9. Определите рекурсор и элиминатор для List.
+
+\func List-rec {A : \Type}
+               (P : \Type)
+               (n : P)
+               (c : A -> List A -> P -> P)
+               (x : List A) : P
+\elim x
+  | nil => n
+  | cons a l => c a l (List-rec P n c l)
+
+\func List-elim {A : \Type}
+                (P : List A -> \Type)
+                (n : P nil)
+                (c : \Pi (a : A) (l : List A) -> P l -> P (cons a l))
+                (x : List A) : P x
+\elim x
+  | nil => n
+  | cons a l => c a l (List-elim P n c l)
 
 -- 10. Докажите, что 0 не равно suc x.
 
-\func zero/=suc (x : Nat) (p : 0 = suc x) : Empty => {?}
+\func is-zero (x : Nat) : \Type \elim x
+  | 0 => \Sigma
+  | suc n => Empty
+
+\func zero/=suc (x : Nat) (p : 0 = suc x) : Empty => transport is-zero p ()
 
 -- 11. Докажите, что fac не равен suc.
+
+\func is-fac (x : Nat -> Nat) : \Type => \case x 1 \with {
+  | 1 => \Sigma
+  | n => Empty
+}
 
 \open Nat (*)
 
@@ -158,28 +236,31 @@
   | 0 => 1
   | suc n => suc n * fac n
 
-\func fac/=suc (p : fac = suc) : Empty => {?}
+\func fac/=suc (p : fac = suc) : Empty => transport is-fac p ()
 
 -- 12. Докажите, что left = right, не используя transport, coe и паттерн матчинг с idp.
 
-\func left=right : left = right => {?}
+\func left=right : left = right => coe (\lam i => left = i) idp right
 
 -- 13. Докажите, что если a = a' и b = b', то (a,b) = (a',b'), не используя transport, coe и паттерн матчинг с idp.
 
-\func pairEq {A B : \Type} {a a' : A} {b b' : B} (p : a = a') (q : b = b') : (a,b) = (a',b') => {?}
+\func pairEq {A B : \Type} {a a' : A} {b b' : B} (p : a = a') (q : b = b') : (a,b) = (a',b') =>
+  pmap2 (\lam x y => (x, y)) p q
 
 -- 14. Докажите, что если p = p', то p.1 = p'.1, не используя transport, coe и паттерн матчинг с idp.
 
-\func projEq {A : \Type} (B : A -> \Type) {p p' : \Sigma (x : A) (B x)} (t : p = p') : p.1 = p'.1 => {?}
+\func projEq {A : \Type} (B : A -> \Type) {p p' : \Sigma (x : A) (B x)} (t : p = p') : p.1 = p'.1 =>
+  pmap (\lam x => x.1) t
 
 -- 15. Докажите pmap2, не используя transport, coe и паттерн матчинг с idp.
 
-\func pmap2' {A B C : \Type} (f : A -> B -> C) {a a' : A} (p : a = a') {b b' : B} (q : b = b') : f a b = f a' b' => {?}
+\func pmap2' {A B C : \Type} (f : A -> B -> C) {a a' : A} (p : a = a') {b b' : B} (q : b = b') : f a b = f a' b' =>
+  transport (\lam x => (f a) b = (f x) b') p (pmap (f a) q)
 
 -- 16. Мы видели как определить transport через coe. Определите частный случай coe через transport.
 --     Можно ли определить transport через coe0?
 
-\func coe0 (A : I -> \Type) (a : A left) : A right => {?}
+\func coe0 (A : I -> \Type) (a : A left) : A right => transport (\lam i => A (idp @ i)) idp a
 
 -- 17. Определите функцию B right -> B left.
 
@@ -191,7 +272,8 @@
 
 \func Jalt {A : \Type} (B : \Pi (a a' : A) -> a = a' -> \Type)
            (b : \Pi (a : A) -> B a a idp)
-           {a a' : A} (p : a = a') : B a a' p => {?}
+           {a a' : A} (p : a = a') : B a a' p =>
+  J (B a) (b a) p
 
 -- Выразите J через Jalt. Можно пользоваться только Jalt, idp и всем, что через них выражается.
 -- Hint:
@@ -201,8 +283,11 @@
 
 \func transport'' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' => {?}
 
-\func sigma-contr {A : \Type} {a : A} (p : \Sigma (x : A) (a = x)) : (a,idp) = {\Sigma (x : A) (a = x)} p => {?}
+-- Jalt (\lam a a' => {?}) (B idp) p
+
+\func sigma-contr {A : \Type} {a : A} (p : \Sigma (x : A) (a = x)) : (a,idp) = {\Sigma (x : A) (a = x)} p \elim p
+  | (x, idp) => idp
 
 \func J' {A : \Type} {a : A} (B : \Pi (a' : A) -> a = a' -> \Type)
          (b : B a idp)
-         {a' : A} (p : a = a') : B a' p => {?}
+         {a' : A} (p : a = a') : B a' p => (transport'' (\lam x => B x {?}) p b)
