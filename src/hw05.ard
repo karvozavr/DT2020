@@ -240,7 +240,7 @@
 
 -- 12. Докажите, что left = right, не используя transport, coe и паттерн матчинг с idp.
 
-\func left=right : left = right => coe (\lam i => left = i) idp right
+\func left=right : left = right => path (\lam i => i)
 
 -- 13. Докажите, что если a = a' и b = b', то (a,b) = (a',b'), не используя transport, coe и паттерн матчинг с idp.
 
@@ -260,11 +260,11 @@
 -- 16. Мы видели как определить transport через coe. Определите частный случай coe через transport.
 --     Можно ли определить transport через coe0?
 
-\func coe0 (A : I -> \Type) (a : A left) : A right => transport (\lam i => A (idp @ i)) idp a
+\func coe0 (A : I -> \Type) (a : A left) : A right => transport A left=right a
 
 -- 17. Определите функцию B right -> B left.
 
-\func Itr' {B : I -> \Type} (b : B right) : B left => {?}
+\func Itr' {B : I -> \Type} (b : B right) : B left => transport B (sym left=right) b
 
 -- 18. У оператора J есть другая форма, которую мы будем называть Jalt. Докажите, что J и Jalt эквивалентны, то есть выразите одно через другое и наоборот.
 
@@ -281,7 +281,8 @@
 -- 2. Докажите, что тип \Sigma (x : A) (a = x) одноэлементный, то есть, что для любого p : \Sigma (x : A) (a = x) верно, что (x,idp) = p.
 -- 3. Используя эти две конструкции, легко определить J.
 
-\func transport'' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' => {?}
+\func transport'' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' =>
+  (Jalt (\lam x y _ => B x -> B y) (\lam x y => y) p) b
 
 -- Jalt (\lam a a' => {?}) (B idp) p
 
@@ -290,4 +291,4 @@
 
 \func J' {A : \Type} {a : A} (B : \Pi (a' : A) -> a = a' -> \Type)
          (b : B a idp)
-         {a' : A} (p : a = a') : B a' p => (transport'' (\lam x => B x {?}) p b)
+         {a' : A} (p : a = a') : B a' p => (transport'' (\lam x => B x.1 x.2) (sigma-contr (a', p)) b)
