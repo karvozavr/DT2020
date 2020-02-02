@@ -284,10 +284,8 @@
 \func transport'' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' =>
   (Jalt (\lam x y _ => B x -> B y) (\lam x y => y) p) b
 
--- Jalt (\lam a a' => {?}) (B idp) p
-
-\func sigma-contr {A : \Type} {a : A} (p : \Sigma (x : A) (a = x)) : (a,idp) = {\Sigma (x : A) (a = x)} p \elim p
-  | (x, idp) => idp
+\func sigma-contr {A : \Type} {a : A} (p : \Sigma (x : A) (a = x)) : (a,idp) = {\Sigma (x : A) (a = x)} p =>
+  Jalt (\lam x y q => (x, idp) = {\Sigma (a : A) (x = a)} (y, q)) (\lam x => idp) p.2
 
 \func J' {A : \Type} {a : A} (B : \Pi (a' : A) -> a = a' -> \Type)
          (b : B a idp)
