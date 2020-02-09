@@ -34,8 +34,7 @@
   | suc n, suc m, (k, p) => lessOrEq->lessOrEq' n m (k, pmap pred (transport (\lam t => t = suc m) (sym (suc+ n k)) p))
 
 \func lessOrEq'->LessOrEq (n m : Nat) (p : lessOrEq' n m) : LessOrEq n m \elim n, m
-  | 0, 0 => z<=n
-  | 0, suc n => z<=n
+  | 0, _ => z<=n
   | suc n, suc m => s<=s (lessOrEq'->LessOrEq n m p)
 
 \func LessOrEq->LessOrEq' (n m : Nat) (p : LessOrEq n m) : LessOrEq' n m \elim n, m, p
@@ -43,31 +42,15 @@
   | 0, suc m, p => <=-step (LessOrEq->LessOrEq' 0 m z<=n)
   | suc n, suc m, s<=s p => helper n m (LessOrEq->LessOrEq' n m p)
   \where
-    \func helper (n m : Nat) (p : LessOrEq' n m) : LessOrEq' (suc n) (suc m) \elim n, m, p
-      | 0, 0, <=-refl = => <=-refl idp
-      | 0, suc n, <=-step p => <=-step (helper 0 n p)
-      | suc n, 0, <=-refl = => absurd (suc/=0 =)
-      | _, suc m, <=-refl = => <=-refl (pmap suc =)
-      | suc n, suc m, <=-step p => <=-step (helper (suc n) m p)
+    \func helper (n m : Nat) (p : LessOrEq' n m) : LessOrEq' (suc n) (suc m) \elim m, p
+      | m, <=-refl = => <=-refl (pmap suc =)
+      | suc m, <=-step p => <=-step (helper n m p)
 
-\func LessOrEq'->lessOrEq (n m : Nat) (p : LessOrEq' n m) : lessOrEq n m \elim n, m, p
-  | 0, 0, <=-refl = => (0, idp)
-  | 0, suc m, <=-refl = => absurd (suc/=0 (sym =))
-  | 0, suc m, <=-step p => (suc m, pmap suc (+-comm 0 m))
-  | suc n, 0, <=-refl = => absurd (suc/=0 =)
-  | suc n, suc m, <=-refl = => (0, =)
-  | suc n, suc m, <=-step p => (
-    (LessOrEq'->lessOrEq n m (helper n m p)).1,
-    transport (\lam z => z = suc m)
-              (suc+ n (LessOrEq'->lessOrEq n m (helper n m p)).1)
-              (pmap suc (LessOrEq'->lessOrEq n m (helper n m p)).2)
-  )
-  \where
-    \func helper (n m : Nat) (p : LessOrEq' (suc n) m) : LessOrEq' n m \elim n, m, p
-      | _, 0, <=-refl = => absurd (suc/=0 =)
-      | _, suc m, <=-refl = => <=-step (<=-refl (pmap pred =))
-      | 0, suc m, <=-step p => <=-step (helper 0 m p)
-      | suc n, suc m, <=-step p => <=-step (helper (suc n) m p)
+\func LessOrEq'->lessOrEq (n m : Nat) (p : LessOrEq' n m) : lessOrEq n m \elim m, p
+  | _, <=-refl p => (0, p)
+  | suc m, <=-step p => \case LessOrEq'->lessOrEq n m p \with {
+    | (k, proof) => (suc k, pmap suc proof)
+  }
 
 -- 4. Определите рефлексивное транзитивное замыкание отношения.
 --    То есть ReflTransClosure R -- это минимальное рефлексивное и транзитивное отношение, содержащее R.
