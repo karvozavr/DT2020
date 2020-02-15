@@ -1,45 +1,111 @@
 \import Utils
-\import lect06 (Decide)
+\import hw02 (gcd)
+\import lect06 (Decide, no, yes)
 \import lect07
 
 -- 1. Определите функцию swap несколькими способами.
 
 -- При помощи \cowith и доступа к полям.
-\func swap {A B : \Type} (p : Pair A B) : Pair B A => {?}
+\func swap {A B : \Type} (p : Pair A B) : Pair B A \cowith
+  | fst_ => p.snd_
+  | snd_ => p.fst_
 
 -- При помощи \new и паттерн матчинга.
-\func swap' {A B : \Type} (p : Pair A B) : Pair B A => {?}
+\func swap' {A B : \Type} (p : Pair A B) : Pair B A \elim p
+  | (a,b) => \new Pair { | fst_ => b | snd_ => a }
 
 -- При помощи \new и доступа к полям.
-\func swap'' {A B : \Type} (p : Pair A B) : Pair B A => {?}
+\func swap'' {A B : \Type} (p : Pair A B) : Pair B A =>
+  \new Pair { | fst_ => p.snd_ | snd_ => p.fst_ }
 
 -- 2. Докажите, что swap (swap p) = p.
 
-\func swap-involutive {A B : \Type} (p : Pair A B) : swap (swap p) = p => {?}
+\func swap-involutive {A B : \Type} (p : Pair A B) : swap (swap p) = p => idp
 
 -- 3. Докажите, что тип PosNat 0 пустой, а тип PosNat 1 нет.
 
-\func zero-isNotPos (p : PosNat 0) : Empty => {?}
+\func zero-isNotPos (p : PosNat 0) : Empty => p.p
 
-\func one-isPos : PosNat 1 => {?}
+\func one-isPos : PosNat 1 \cowith
+  | p => ()
 
 -- 4. Определите \record, состоящий из пар взаимно простых натуральных чисел.
 --    Определите тип, состоящий из натуральных чисел, взаимно простых с 60.
 
+\record Primes
+  | a : Nat
+  | b : Nat
+  | proof : gcd a b = 1
+
+\func coprimes60 => Primes { | b => 60 }
+
 -- 5. Докажите, что если равенство элементов A разрешимо, то и равенство элементов List A тоже разрешимо.
 
+\func isNil {A : \Type} (l : List A) : \Type
+  | nil => \Sigma
+  | cons a l => Empty
+
+\func cons/=nil {A : \Type} (x : A) (xs : List A) (p : nil = cons x xs) : Empty => transport isNil p ()
+
 \instance ListEq {A : \Type} (dec : Eq A) : Eq (List A)
-  | decideEq => {?}
+  | decideEq => helper
+  \where {
+    \func helper {A : \Type} {dec : Eq A} (a a' : List A) : Decide (a = a') \elim a, a'
+      | nil, nil => yes idp
+      | nil, cons a l => no (cons/=nil a l)
+      | cons a l, nil => no (\lam t => cons/=nil a l (sym t))
+      | cons a l, cons a' l' => \case helper l l', dec.decideEq a a' \with {
+        | yes p, yes q => yes (pmap (cons a) p *> pmap (\lam t => cons t l') q)
+        | _, no q => no (\lam t => q (pmap (head a) t))
+        | no p, _ => no (\lam t => p (pmap tail t))
+      }
+
+    \func head {A : \Type} (a : A) (l : List A) : A \elim l
+      | nil => a
+      | cons a l => a
+
+    \func tail {A : \Type} (l : List A) : List A \elim l
+      | nil => nil
+      | cons a l => l
+  }
 
 -- 6. Закончите определение класса монад. Этот класс должен содержать все монадные законы и реализовывать все поля из класса функторов.
+
+\func extensionality {A : \Type} (B : A -> \Type) {f g : \Pi (a : A) -> B a}
+                     (p : \Pi (a : A) -> f a = g a) : f = g => path (\lam i a => p a @ i)
 
 \class Monad \extends Functor
   | return {A : \Type} : A -> F A
   | \infixl 1 >>= {A B : \Type} : F A -> (A -> F B) -> F B
+  | idLeft {A B : \Type} (x : A) (f : A -> F B) : (return x >>= f) = f x
+  | idRight {A : \Type} (m : F A) : (m >>= return) = m
+  | assoc {A B C : \Type} (m : F A) (f : A -> F B) (g : B -> F C) : ((m >>= f) >>= g) = (m >>= (\lam x => f x >>= g))
+  | fmap f fa => fa >>= (\lam x => return (f x))
+  | fmap-id => idRight
+  | fmap-comp {A B C : \Type} f g y => (pmap (y >>=)
+                                             (extensionality (\lam _ => F C) (\lam a =>
+                                                 return (g (f a)) ==< sym (idLeft (f a) (\lam x => return (g x))) >==
+                                                 (return (f a) >>= (\lam x => return (g x))) `qed
+                                             )))
+  *> sym (assoc y (\lam x => return (f x)) (\lam x => return (g x)))
 
 -- 7. Определите \instance Monad для Maybe.
 
-\instance MaybeMonad : Monad Maybe => {?}
+\instance MaybeMonad : Monad Maybe \cowith
+  | return => \lam x => just x
+  | >>= m f => \case m \with {
+    | nothing => nothing
+    | just a => f a
+  }
+  | idLeft a f => idp
+  | idRight {A : \Type} (m : Maybe A) : ((m >>= just) = m) \with {
+    | nothing => idp
+    | just a => idp
+  }
+  | assoc {A B C : \Type} (m : Maybe A) (f : A -> Maybe B) (g : B -> Maybe C) : ((m >>= f) >>= g) = (m >>= (\lam x => f x >>= g)) \with {
+    | nothing, f, g => idp
+    | just a, f, g => idp
+  }
 
 -- 8. Определите \instance Monad для State и State'.
 
@@ -51,12 +117,17 @@
 
 -- 9. Определите \instance Monad для Term.
 
-\instance TermMonad : Monad Term
-  | fmap => {?}
-  | fmap-id => {?}
-  | fmap-comp => {?}
-  | return => {?}
-  | >>= => {?}
+\instance TermMonad : Monad Term \cowith
+  | return => \lam x => unit
+  | \infixl 1 >>= {A B : \Type} (m : Term A) (f : A -> Term B) : Term B \elim m {
+    | var v => f v
+    | unit => unit
+    | app t s => {?}
+    | lam t => {?}
+  }
+  | idLeft => {?}
+  | idRight => {?}
+  | assoc => {?}
 
 -- 10. Определите отношение многошаговой редукции на Term.
 
