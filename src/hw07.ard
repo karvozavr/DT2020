@@ -93,7 +93,7 @@
 -- 7. Определите \instance Monad для Maybe.
 
 \instance MaybeMonad : Monad Maybe \cowith
-  | return => \lam x => just x
+  | return => just
   | >>= m f => \case m \with {
     | nothing => nothing
     | just a => f a
@@ -134,7 +134,7 @@
   | return a => state' (\lam s => (s, a))
   | >>= s f => state' (\lam s' => get (f (get s s').2) (get s s').1)
   | idLeft x f => {?}
-  | idRight => {?}
+  | idRight m => {?}
   | assoc => {?}
 
 -- 9. Определите \instance Monad для Term.
@@ -202,7 +202,34 @@
 -- 11. Стратегия редукции -- это функция, которая каждому терму сопоставляет либо некоторый терм, к которому он редуцируется за 1 шаг, либо доказательство, что таких термов нет.
 --     Определите любую стратегию редукции.
 
-\func strategy {V : \Type} (t : Term V) : Decide (\Sigma (s : Term V) (Red1 t s)) => {?}
+--\ x -> (\ y -> x y)
+\func term {V : \Type} : Term V => lam (lam (app (var (just nothing)) (var nothing)))
+
+\func strategy {V : \Type} (t : Term V) : Decide (\Sigma (s : Term V) (Red1 t s)) \elim t
+  | var v => no (\lam p => \case p.2 \with {})
+  | unit => no (\lam p => \case p.2 \with {})
+  | app t s => \case \elim t \with {
+    | var v => \case strategy s \with {
+      | yes q => yes (app (var v) q.1, appRight idp q.2)
+      | no q => no (\lam p => q {?})
+    }
+    | unit => \case strategy s \with {
+      | yes q => yes (app unit q.1, appRight idp q.2)
+      | no q => no (\lam p => q {?})
+    }
+    | app t' s' => \case strategy (app t' s') \with {
+      | yes p => yes (app p.1 s, appLeft p.2 idp)
+      | no p => \case strategy s' \with {
+        | yes a => yes (app (app t' a.1) s, appLeft (appRight idp a.2) idp)
+        | no n => {?}
+      }
+    }
+    | lam t' => yes (t' >>= maybe s return, beta t' idp idp)
+  }
+  | lam t => \case strategy t \with {
+    | yes p => yes (lam p.1, lamRed p.2)
+    | no p => no (\lam q => p {?})
+  }
 
 -- 12. Докажите следующую обобщенную лемму о подстановке и выведите из нее обычную версию: если Г, x : A |- b : B и Г |- a : A, то Г |- b[a/x] : B.
 
@@ -228,4 +255,4 @@
 
 -- Это утверждение легко следует из предыдущего.
 \func typeableInterpId {V : \Type} (ctx : V -> Type) (t : Term V) (T : Type) (p : hasType ctx t T)
-  : Interp T t => {?}
+  : Interp T t => typeableInterp ctx var (\lam x => {?}) t T p
