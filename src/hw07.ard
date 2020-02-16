@@ -1,5 +1,6 @@
 \import Utils
 \import hw02 (gcd)
+\import hw05 (pmap2)
 \import lect06 (Decide, no, yes)
 \import lect07
 
@@ -112,22 +113,87 @@
 \record State (S A : \Type)
   | state : S -> \Sigma S A
 
+\instance StateMonad (S : \Type) : Monad (\lam A => State S A) \cowith
+  | return a => \new State {
+    | state => \lam s => (s, a)
+  }
+  | >>= s f => \new State {
+    | state => \lam s' => state {f (state {s} s').2} (state {s} s').1
+  }
+  | idLeft x f => idp
+  | idRight s => idp
+  | assoc s f g => idp
+
 \data State' (S A : \Type)
   | state' (S -> \Sigma S A)
+
+\func get {S A : \Type} (s : State' S A) : S -> \Sigma S A \elim s
+  | state' s => s
+
+\instance State'Monad (S : \Type) : Monad (State' S) \cowith
+  | return a => state' (\lam s => (s, a))
+  | >>= s f => state' (\lam s' => get (f (get s s').2) (get s s').1)
+  | idLeft x f => {?}
+  | idRight => {?}
+  | assoc => {?}
 
 -- 9. Определите \instance Monad для Term.
 
 \instance TermMonad : Monad Term \cowith
-  | return => \lam x => unit
+  | return => var
   | \infixl 1 >>= {A B : \Type} (m : Term A) (f : A -> Term B) : Term B \elim m {
     | var v => f v
     | unit => unit
-    | app t s => {?}
-    | lam t => {?}
+    | app t s => app (t >>= f) (s >>= f)
+    | lam t => lam (t >>= (captureF f))
   }
-  | idLeft => {?}
-  | idRight => {?}
-  | assoc => {?}
+  | idLeft x f => idp
+  | idRight {A : \Type } (m : Term A) : (m >>= var) = m \elim m {
+    | var v => idp
+    | unit => idp
+    | app t s => pmap2 app (idRight t) (idRight s)
+    | lam t => pmap lam (transport (\lam x => (t >>= x) = t) captureF-id (idRight t))
+  }
+  | assoc {A B C : \Type} (m : Term A) (f : A -> Term B) (g : B -> Term C) : ((m >>= f) >>= g) = (m >>= (\lam x => f x >>= g)) \elim m {
+    | var v => idp
+    | unit => idp
+    | app t s => pmap2 app (assoc t f g) (assoc s f g)
+    | lam t => pmap lam (assoc t (captureF f) (captureF g) *> (pmap (>>= t) (captureF-bindPmap f g)))
+  }
+
+  \where {
+    \func capture {A : \Type} (t : Term A) : Term (Maybe A) \elim t
+      | var v => var (just v)
+      | unit => unit
+      | app t s => app (capture t) (capture s)
+      | lam t => lam (capture t)
+
+    \func captureF {A B : \Type} (f : A -> Term B) (a : Maybe A) : Term (Maybe B) \elim a
+      | nothing => var nothing
+      | just a => capture (f a)
+
+    \func captureF-id {A : \Type} : var = captureF {A} var => extensionality
+        (\lam _ => Term (Maybe A))
+        {var} {captureF var}
+        (\lam x => \case \elim x \with {
+          | nothing => idp
+          | just a => idp
+        })
+
+    \func capture-bindPmap {A B : \Type} (a : Term A) (f : A -> Term B) : (capture a >>= captureF f) = (capture (a >>= f)) \elim a
+      | var v => idp
+      | unit => idp
+      | app t s => pmap2 app (capture-bindPmap t f) (capture-bindPmap s f)
+      | lam t => pmap lam (capture-bindPmap t (captureF f))
+
+    \func captureF-bindPmap {A B C : \Type} (f : A -> Term B) (g : B -> Term C)  : (\lam x => captureF f x >>= captureF g) = captureF (\lam x => f x >>= g) => extensionality
+        (\lam _ => Term (Maybe C))
+        {\lam x => captureF f x >>= captureF g} {captureF (\lam x => f x >>= g)}
+        (\lam a => \case \elim a \with {
+          | nothing => idp
+          | just a => capture-bindPmap (f a) g
+        })
+  }
 
 -- 10. Определите отношение многошаговой редукции на Term.
 
