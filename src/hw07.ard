@@ -94,7 +94,7 @@
 
 \instance MaybeMonad : Monad Maybe \cowith
   | return => just
-  | >>= m f => \case m \with {
+  |  \infixl 1 >>= {A B : \Type} (m : Maybe A) (f : A -> Maybe B) : Maybe B \elim m {
     | nothing => nothing
     | just a => f a
   }
