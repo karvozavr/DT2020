@@ -1,7 +1,9 @@
 \import Prelude
-\import hw06 (mod-view, quot-rem)
+\import hw06 (Sublist, mod-view, nilSublist, isSublist, isSublistEq, quot-rem)
 \import lect02 (-, if)
+\import lect05 (true/=false)
 \import lect06 (Decide, no, yes)
+\import lect07 (NatEq)
 \import lect08
 \import Utils
 \open Nat (+, *)
@@ -19,15 +21,9 @@
 
 \func idTest4 : \Type (\suc \lp) => id' (\level (\suc (\suc \lp)) _) (Functor Maybe)
 
-\func idTest5 (f : \Pi {A B : \Type} -> (A -> B) -> Maybe A -> Maybe B) => id' (\level \lp _) (Functor Maybe f)
+\func idTest5 (f : \Pi {A B : \Type \lp} -> (A -> B) -> Maybe A -> Maybe B) => id' (\level \lp _) (Functor Maybe f)
 
 -- 2. Определите div через Nat-ind.
-
-\func div' (x y : Nat) => div'' x x y
-  \where
-    \func div'' (s x y : Nat) : Nat \elim s
-      | 0 => 0
-      | suc s => if (x < y) 0 (suc (div'' s (x - y) y))
 
 \func decideLess (x y : Nat) : Decide (x < y) \elim x, y
   | 0, 0 => no (\lam p => \case p \with {
@@ -43,21 +39,48 @@
 \func unsuc {n m : Nat} (p : suc n < suc m) : n < m \elim p
   | Nat.suc<=suc q => q
 
+\func unsuc= {n m : Nat} (p : suc n <= suc m) : n <= m \elim p
+  | Nat.suc<=suc q => q
+
+\func n<=sucn {n : Nat} : n <= suc n \elim n
+  | 0 => Nat.zero<=_
+  | suc n => Nat.suc<=suc n<=sucn
+
 --\func div (n k : Nat) (p : 0 < k) : Nat => Nat-ind (\lam _ => Nat) (\lam x rec-result => \case (x < k) 0 (suc (rec-result (x - k) {?}))) n -- (\lam n' k' => {?}) k
 
-\func div (n k : Nat) (p : 0 < k) : Nat => Nat-ind (\lam _ => Nat) (\lam x rec-result => \case decideLess k x \with {
-  | yes a => suc (rec-result (x - k) (aux a p))
-  | no n => 0
-}) n
+\func div (n k : Nat) (p : 0 < k) : Nat => Nat-ind
+    (\lam _ => Nat) (\lam x rec-result => \case decideLess k x \with {
+      | yes a => suc (rec-result (x - k) (aux (<-trans p a) p))
+      | no n => \case NatEq.decideEq k x \with {
+        | yes a => 1
+        | no n => 0
+      }
+    }) n
   \where {
-    \func helper {x y : Nat} (p : x < y) : x < suc y \elim x, y
-      | 0, 0 => Nat.suc<=suc Nat.zero<=_
-      | 0, suc n => Nat.suc<=suc Nat.zero<=_
-      | suc n, suc m => Nat.suc<=suc {?}
+    \func <-trans {m k : Nat} (p : 0 < m) (q : m < k) : 0 < k \elim k, p, q
+      | suc n, p, Nat.suc<=suc a => <=-trans (<=-trans p a) n<=sucn
 
-    \func aux {k x : Nat} (p : k < x) (q : 0 < k) : x - k < x \elim k, x
-      | suc n, suc m => helper (aux (unsuc p) {?})
+    \func zero-minus-id (n : Nat) : n - 0 = n
+      | 0 => idp
+      | suc n => idp
+
+    \func -sucn<=-n (n k : Nat) : n - (suc k) <= n - k
+      | 0, _ => Nat.zero<=_
+      | suc n, 0 => transport (\lam x => x <= suc n) (sym (zero-minus-id n)) n<=sucn
+      | suc n, suc k => -sucn<=-n n k
+
+    \func aux {x k : Nat} (p : 0 < x) (q : 0 < k) : x - k < x \elim x, k
+      | suc x, 1 => Nat.suc<=suc (transport (\lam t => x - 0 <= t) (zero-minus-id x) <=-refl)
+      | suc x, suc (suc k) => \case (aux {suc x} {suc k} (Nat.suc<=suc Nat.zero<=_) (Nat.suc<=suc Nat.zero<=_)) \with {
+        | Nat.suc<=suc t => Nat.suc<=suc (<=-trans (-sucn<=-n x k) t)
+      }
   }
+
+\func test-div1 (p : 0 < 2) : (div 4 2 p) = 2 => idp
+\func test-div2 (p : 0 < 2) : (div 2 2 p) = 1 => idp
+\func test-div3 (p : 0 < 3) : (div 24 3 p) = 8 => idp
+\func test-div4 (p : 0 < 3) : (div 0 3 p) = 0 => idp
+\func test-div5 (p : 0 < 3) : (div 1 3 p) = 0 => idp
 
 -- 3. Докажите следующий принцип индукции для списков.
 
@@ -65,11 +88,84 @@
   {A : \Type}
   (E : List A -> \Type)
   (r : \Pi (xs : List A) -> (\Pi (ys : List A) -> length ys < length xs -> E ys) -> E xs)
-  (xs : List A) : E xs => {?}
+  (xs : List A) : E xs => helper E r xs (length xs) <=-refl
+  \where
+    \func helper
+      {A : \Type}
+      (E : List A -> \Type)
+      (r : \Pi (xs : List A) -> (\Pi (ys : List A) -> length ys < length xs -> E ys) -> E xs)
+      (xs : List A)
+      (n : Nat)
+      (p : length xs <= n) : E xs \elim xs, n, p
+        | nil, _, p => r nil (\lam ys p => \case p \with {})
+        | cons x xs, suc n, p => r (cons x xs) (\lam ys q => helper E r ys n (unsuc= (<=-trans q p)))
+        | cons x xs, 0, p => \case p \with {}
 
 -- 4. Реализуйте функцию filter и докажите ее корректность, то есть, что выполнены следующие условия:
 --    * filter p xs является подсписком xs
 --    * Все элементы filter p xs удовлетворяют предикату p
 --    * Любой подсписок xs с тем же свойством является подсписком filter p xs
+
+\func filter {A : \Type} (p : A -> Bool) (xs : List A) : List A \elim xs
+  | nil => nil
+  | cons x xs => \case (p x) \with {
+    | true => cons x (filter p xs)
+    | false => filter p xs
+  }
+
+\func filter-sublist {A : \Type} (xs : List A)  (p : A -> Bool) : Sublist (filter p xs) xs \elim xs, p
+  | nil, p => nilSublist
+  | cons x xs, p => \case p x \as b \return
+  (Sublist (\case b \with {
+    | true => cons x (filter p xs)
+    | false => filter p xs
+  }) (cons x xs))
+  \with {
+    | true => isSublistEq idp (filter-sublist xs p)
+    | false => helper x (filter p xs) xs (filter-sublist xs p)
+  }
+  \where
+    \func helper {A : \Type} (y : A) (xs ys : List A)  (p : Sublist xs ys) : Sublist xs (cons y ys) \elim xs, ys, p
+      | nil, _, nilSublist => nilSublist
+      | cons x xs, cons y' ys, p => isSublist p
+
+\data Satisfy {A : \Type} (xs : List A) (p : A -> Bool) \elim xs
+  | nil => nilSat
+  | cons x xs => consSat (p x = true) (Satisfy xs p)
+
+\func all-p {A : \Type} (xs : List A) (p : A -> Bool) : Satisfy (filter p xs) p \elim xs, p
+  | nil, p => nilSat
+  | cons x xs, p => \case p x \as b, idp : p x = b \return
+  (Satisfy (\case b \with {
+    | true => cons x (filter p xs)
+    | false => filter p xs
+  }) p)
+  \with {
+    | true, q => consSat q (all-p xs p)
+    | false, q => all-p xs p
+  }
+
+\func sublist-filter-satisfy {A : \Type} (xs ys : List A) (pred : A -> Bool) (subl : Sublist ys xs) (sat : Satisfy ys pred) : Sublist ys (filter pred xs) \elim xs, ys, subl, sat
+  | _, nil, nilSublist, nilSat => nilSublist
+  | cons x xs, cons y ys, isSublistEq p subl, consSat q sat =>
+    \case pred x \as b, idp : pred x = b \return
+    (Sublist (cons y ys) (\case b \with {
+      | true => cons x (filter pred xs)
+      | false => filter pred xs
+    }))
+    \with {
+      | true, _ => isSublistEq p (sublist-filter-satisfy xs ys pred subl sat)
+      | false, px=b => absurd (true/=false (sym q *> (transport (\lam t => pred t = false) (sym p) px=b)))
+    }
+  | cons x xs, cons y ys, isSublist subl, consSat q sat =>
+    \case pred x \as b, idp : pred x = b \return
+    (Sublist (cons y ys) (\case b \with {
+      | true => cons x (filter pred xs)
+      | false => filter pred xs
+    }))
+    \with {
+      | true, _ => isSublist (sublist-filter-satisfy xs (cons y ys) pred subl (consSat q sat))
+      | false, px=b => sublist-filter-satisfy xs (cons y ys) pred subl (consSat q sat)
+    }
 
 -- 5. Бонусное задание: докажите корректность любого алгоритма сортировки, отличного от сортировки вставками.
