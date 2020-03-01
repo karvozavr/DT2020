@@ -1,21 +1,63 @@
+\import Prelude
+\import hw06 (mod-view, quot-rem)
+\import lect02 (-, if)
+\import lect06 (Decide, no, yes)
 \import lect08
 \import Utils
-\open Nat(+,*)
+\open Nat (+, *)
 
 -- 1. Укажите явно чему равен уровень в каждом из вызовов id' ниже.
 --    Напишите явно чему равны типы всех функций idTest*.
 
 \func id' {A : \Type} (a : A) => a
 
-\func idTest1 => id' (id' id)
-\func idTest2 => id' Maybe
-\func idTest3 => id' Functor
-\func idTest4 => id' (Functor Maybe)
-\func idTest5 (f : \Pi {A B : \Type} -> (A -> B) -> Maybe A -> Maybe B) => id' (Functor Maybe f)
+\func idTest1 : \Pi (A : \Type \lp) -> A -> A => id' (\level (\suc \lp) _) (id' id)
+
+\func idTest2 : \Type \lp -> \Type \lp => id' (\level (\suc \lp) _)  Maybe
+
+\func idTest3 : \Type (\suc \lp) => id' (\level (\suc (\suc \lp)) _) Functor
+
+\func idTest4 : \Type (\suc \lp) => id' (\level (\suc (\suc \lp)) _) (Functor Maybe)
+
+\func idTest5 (f : \Pi {A B : \Type} -> (A -> B) -> Maybe A -> Maybe B) => id' (\level \lp _) (Functor Maybe f)
 
 -- 2. Определите div через Nat-ind.
 
-\func div (n k : Nat) (p : 0 < k) : Nat => {?}
+\func div' (x y : Nat) => div'' x x y
+  \where
+    \func div'' (s x y : Nat) : Nat \elim s
+      | 0 => 0
+      | suc s => if (x < y) 0 (suc (div'' s (x - y) y))
+
+\func decideLess (x y : Nat) : Decide (x < y) \elim x, y
+  | 0, 0 => no (\lam p => \case p \with {
+  })
+  | 0, suc n => yes (Nat.suc<=suc Nat.zero<=_)
+  | suc n, 0 => no (\lam p => \case p \with {
+  })
+  | suc x, suc y => \case decideLess x y \with {
+    | yes a => yes (Nat.suc<=suc a)
+    | no n => no (\lam p => n (unsuc p))
+  }
+
+\func unsuc {n m : Nat} (p : suc n < suc m) : n < m \elim p
+  | Nat.suc<=suc q => q
+
+--\func div (n k : Nat) (p : 0 < k) : Nat => Nat-ind (\lam _ => Nat) (\lam x rec-result => \case (x < k) 0 (suc (rec-result (x - k) {?}))) n -- (\lam n' k' => {?}) k
+
+\func div (n k : Nat) (p : 0 < k) : Nat => Nat-ind (\lam _ => Nat) (\lam x rec-result => \case decideLess k x \with {
+  | yes a => suc (rec-result (x - k) (aux a p))
+  | no n => 0
+}) n
+  \where {
+    \func helper {x y : Nat} (p : x < y) : x < suc y \elim x, y
+      | 0, 0 => Nat.suc<=suc Nat.zero<=_
+      | 0, suc n => Nat.suc<=suc Nat.zero<=_
+      | suc n, suc m => Nat.suc<=suc {?}
+
+    \func aux {k x : Nat} (p : k < x) (q : 0 < k) : x - k < x \elim k, x
+      | suc n, suc m => helper (aux (unsuc p) {?})
+  }
 
 -- 3. Докажите следующий принцип индукции для списков.
 
