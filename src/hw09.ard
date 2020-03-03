@@ -16,15 +16,21 @@
 -- 2. Определите предикат "делится на 3 или на 5" так, чтобы он возвращал утверждения.
 --    Докажите, что MultipleOf3Or5 вкладывается в ℕ.
 
-\func isMultipleOf3Or5 (n : Nat) : \Type => {?}
+\func isMultipleOf3Or5 (n : Nat) : \Type => T (\case mod3 n \with {
+  | 0 => true
+  | suc n => \case mod5 (suc n) \with {
+    | 0 => true
+    | suc n => false
+  }
+})
 
-\func isMultipleOf3Or5-isProp (n : Nat) : isProp (isMultipleOf3Or5 n) => {?}
+\func isMultipleOf3Or5-isProp (n : Nat) : isProp (isMultipleOf3Or5 n) => \lam x y => T-lem
 
 \func MultipleOf3Or5 => \Sigma (n : Nat) (isMultipleOf3Or5 n)
 
 \func Mul-inc (m : MultipleOf3Or5) => m.1
 
-\func Mul-inc-isInj : isInj Mul-inc => {?}
+\func Mul-inc-isInj : isInj Mul-inc => \lam x y p => sigmaEq isMultipleOf3Or5 x y p T-lem
 
 -- 3. Мы будем говорить, что тип A тривиален, если существует элемент в A, такой что любой другой элемент в A равен ему.
 --    Докажите, что тип A тривиален тогда и только тогда, когда A является утверждением и A населен.
@@ -33,18 +39,27 @@
 
 \func \infix 1 <-> (A B : \Type) => \Sigma (A -> B) (B -> A)
 
-\func isTriv-lem (A : \Type) : isTriv A <-> (\Sigma (isProp A) A) => {?}
+\func isTriv-lem (A : \Type) : isTriv A <-> (\Sigma (isProp A) A) =>
+  (\lam tr => (\lam x y => sym (tr.2 x) *> tr.2 y, tr.1), \lam sgm => (sgm.2, sgm.1 sgm.2))
 
 -- 4. Докажите, что Either не является утверждением в общем случаем.
+--\func true/=false (p : true = false) : Empty => transport T p ()
 
-\func Either-isProp (p : \Pi {A B : \Type} (pA : isProp A) (pB : isProp B) -> isProp (Either A B)) : Empty => {?}
+\func helper {A B : \Type} (x : Either A B) : \Type \elim x
+  | Either.inl a => \Sigma
+  | Either.inr b => Empty
+
+\func inl/=inr {A B : \Type} {x : A} {y : B} (p : Either.inl x = Either.inr y) : Empty => transport helper p ()
+
+\func Either-isProp (p : \Pi {A B : \Type} (pA : isProp A) (pB : isProp B) -> isProp (Either A B)) : Empty =>
+  inl/=inr ((p Unit-isProp Unit-isProp) (Either.inl ()) (Either.inr ()))
 
 -- 5. Докажите, что \Sigma сохраняет утверждения.
 
 \func Sigma-isProp {A : \Type} (pA : isProp A) (B : A -> \Type)
                     (pB : \Pi (x : A) -> isProp (B x))
   : isProp (\Sigma (x : A) (B x))
-  => {?}
+  => \lam p q => sigmaEq B p q (pA p.1 q.1) (pB q.1 (transport B (pA p.1 q.1) p.2) q.2)
 
 -- 6. Докажите, что LessOrEq и LessOrEq' являются предикатами.
 
@@ -56,13 +71,22 @@
   | suc m => <=-step (LessOrEq' n m)
   | m => <=-refl (n = m)
 
-\func LessOrEq-isProp {n m : Nat} : isProp (LessOrEq n m) => {?}
+\func LessOrEq-isProp {n m : Nat} : isProp (LessOrEq n m) => aux n m
+  \where
+    \func aux (n m : Nat) (x y : LessOrEq n m) : x = y \elim n, m, x, y
+      | 0, 0, z<=n, z<=n => idp
+      | 0, suc n, z<=n, z<=n => idp
+      | suc n, suc m, s<=s x, s<=s y => pmap s<=s (aux n m x y)
 
 -- Для решения LessOrEq'-isProp понадобится тот факт, что Nat является множеством.
 -- Сейчас доказывать это не нужно доказывать, доказательство будет приведено позже.
 \func Nat-isSet : isSet Nat => {?}
 
-\func LessOrEq'-isProp {n m : Nat} : isProp (LessOrEq' n m) => {?}
+\func LessOrEq'-isProp {n m : Nat} : isProp (LessOrEq' n m) => \lam x y => {?}
+  \where
+    \func aux (n m : Nat) (x y : LessOrEq' n m) : x = y \elim n, x
+      | 0, x => {?}
+      | suc n, x => {?}
 
 -- 7. Докажте, что ReflClosure LessOrEq не является предикатом, а ReflClosure (\lam x y => T (x < y)) является.
 
