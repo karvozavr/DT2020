@@ -1,3 +1,4 @@
+\import hw05 (zero/=suc)
 \import lect06
 \import lect09
 \import Utils
@@ -7,11 +8,14 @@
 --    Докажите, что если g `o` f инъективна, то f также инъективна.
 
 -- Композиция функций
+
 \func \fixr 9 o {A B C : \Type} (g : B -> C) (f : A -> B) => \lam a => g (f a)
 
-\func o-inj {A B C : \Type} (f : A -> B) (g : B -> C) (p : isInj f) (q : isInj g) : isInj (g `o` f) => \lam x y gf => p x y (q (f x) (f y) gf)
+\func o-inj {A B C : \Type} (f : A -> B) (g : B -> C) (p : isInj f) (q : isInj g) : isInj (g `o` f) =>
+  \lam x y gf => p x y (q (f x) (f y) gf)
 
-\func o-inj' {A B C : \Type} (f : A -> B) (g : B -> C) (p : isInj (g `o` f)) : isInj f => \lam x y gf => p x y (pmap g gf)
+\func o-inj' {A B C : \Type} (f : A -> B) (g : B -> C) (p : isInj (g `o` f)) : isInj f =>
+  \lam x y gf => p x y (pmap g gf)
 
 -- 2. Определите предикат "делится на 3 или на 5" так, чтобы он возвращал утверждения.
 --    Докажите, что MultipleOf3Or5 вкладывается в ℕ.
@@ -57,9 +61,8 @@
 -- 5. Докажите, что \Sigma сохраняет утверждения.
 
 \func Sigma-isProp {A : \Type} (pA : isProp A) (B : A -> \Type)
-                    (pB : \Pi (x : A) -> isProp (B x))
-  : isProp (\Sigma (x : A) (B x))
-  => \lam p q => sigmaEq B p q (pA p.1 q.1) (pB q.1 (transport B (pA p.1 q.1) p.2) q.2)
+                   (pB : \Pi (x : A) -> isProp (B x))
+  : isProp (\Sigma (x : A) (B x)) => \lam p q => sigmaEq B p q (pA p.1 q.1) (pB q.1 (transport B (pA p.1 q.1) p.2) q.2)
 
 -- 6. Докажите, что LessOrEq и LessOrEq' являются предикатами.
 
@@ -80,13 +83,36 @@
 
 -- Для решения LessOrEq'-isProp понадобится тот факт, что Nat является множеством.
 -- Сейчас доказывать это не нужно доказывать, доказательство будет приведено позже.
+
+\func pred (n : Nat) : Nat \elim n
+  | 0 => 0
+  | suc n => n
+
 \func Nat-isSet : isSet Nat => {?}
 
-\func LessOrEq'-isProp {n m : Nat} : isProp (LessOrEq' n m) => \lam x y => {?}
-  \where
-    \func aux (n m : Nat) (x y : LessOrEq' n m) : x = y \elim n, x
-      | 0, x => {?}
-      | suc n, x => {?}
+\func LessOrEq'-isProp {n m : Nat} : isProp (LessOrEq' n m) => \lam x y => aux n m x y
+  \where {
+    \func aux (n m : Nat) (x y : LessOrEq' n m) : x = y \elim n, m, x, y
+      | n, m, <=-refl p, <=-refl q => pmap <=-refl ((Nat-isSet n m) p q)
+      | n, suc m, <=-step p, <=-step q => pmap <=-step (aux n m p q)
+      | n, suc m, <=-step p, <=-refl q => absurd (helper n m p q)
+      | n, suc m, <=-refl p, <=-step q => absurd (helper n m q p)
+
+    \func helper (n m : Nat) (less : LessOrEq' n m) (p : n = suc m) : Empty \elim n, m, less
+      | n, 0, <=-refl l => absurd (zero/=suc 0 (sym l *> p))
+      | 0, suc m, <=-step l => absurd (zero/=suc (suc m) p)
+      | suc n, suc m, <=-step l => helper n m (lessOrEqPred l) (pmap pred p)
+      | n, suc m, <=-refl r => absurd (nIsNotsucn (sym r *> p))
+
+    \func lessOrEqPred {n m : Nat} (l : LessOrEq' (suc n) m) : LessOrEq' n m \elim m, l
+      | 0, <=-refl p => absurd (zero/=suc n (sym p))
+      | suc m, <=-step p => <=-step (lessOrEqPred p)
+      | suc m, <=-refl p => <=-step (<=-refl (pmap pred p))
+
+    \func nIsNotsucn {n : Nat} (p : n = suc n) : Empty \elim n
+      | 0 => zero/=suc 0 p
+      | suc n => nIsNotsucn (pmap pred p)
+  }
 
 -- 7. Докажте, что ReflClosure LessOrEq не является предикатом, а ReflClosure (\lam x y => T (x < y)) является.
 
@@ -99,18 +125,38 @@
   | refl (x = y)
   | inc (R x y)
 
-\func ReflClosure_<-isProp (n m : Nat) : isProp (ReflClosure (\lam x y => T (x < y)) n m) => {?}
+\func ReflClosure_<-isProp (n m : Nat) : isProp (ReflClosure (\lam x y => T (x < y)) n m) => \lam x y => helper n m x y
+  \where {
+    \func helper (n m : Nat) (x y : (ReflClosure (\lam x y => T (x < y)) n m)) : x = y \elim x, y
+      | refl p, refl q => pmap refl (Nat-isSet n m p q)
+      | refl p, inc q => absurd (reflIsNotInc n m p q)
+      | inc p, refl q => absurd (reflIsNotInc n m q p)
+      | inc p, inc q => pmap inc T-lem
 
-\func ReflClosure_<=-isNotProp (p : \Pi (n m : Nat) -> isProp (ReflClosure LessOrEq n m)) : Empty => {?}
+    \func reflIsNotInc (n m : Nat) (p : n = m) (r : T (n < m)) : Empty \elim n, m, r
+      | 0, suc m, r => absurd (zero/=suc m p)
+      | suc n, suc m, r => reflIsNotInc n m (pmap pred p) r
+  }
+
+\func ReflClosure_<=-isNotProp (p : \Pi (n m : Nat) -> isProp (ReflClosure LessOrEq n m)) : Empty =>
+  transport reflClosureDec (p 1 1 (inc (s<=s z<=n)) (refl idp)) ()
+  \where
+    \func reflClosureDec {n m : Nat} (r : ReflClosure LessOrEq n m) : \Type \elim r
+      | refl p => Empty
+      | inc r => \Sigma
 
 -- 8. Докажите, что если тип A вкладывается в тип B и B является утверждением, то и A является утверждением.
 
-\func sub-isProp {A B : \Type} (f : A -> B) (p : isInj f) (q : isProp B) : isProp A => {?}
+\func sub-isProp {A B : \Type} (f : A -> B) (p : isInj f) (q : isProp B) : isProp A =>
+  \lam x y => p x y (q (f x) (f y))
 
 -- 9. Докажите, что тип с разрешимым равенством являетя множеством.
 
-\func Dec-isSet {A : \Type} (dec : \Pi (x y : A) -> Decide (x = y)) : isSet A
-  => {?}
+\func Dec-isSet {A : \Type} (dec : \Pi (x y : A) -> Decide (x = y)) : isSet A =>
+  \lam x y => \lam a b => \case dec x y \with {
+    | yes x=y => {?}
+    | no n => absurd (n a)
+  }
 
 -- 10. Если A и B являются множествами, то A `Or` B тоже является множеством.
 
@@ -118,7 +164,21 @@
   | inl A
   | inr B
 
-\func or-isSet {A B : \Type} (p : isSet A) (q : isSet B) : isSet (Or A B) => {?}
+
+
+\func or-isSet {A B : \Type} (p : isSet A) (q : isSet B) : isSet (Or A B) => aux
+\where {
+  \func aux {A B : \Type} (x y : Or A B) (a b : x = y) : a = b \elim x, y
+    | inl a1, inl a2 => {?}
+    | inl a1, inr b1 => absurd (inlIsNotInr a)
+    | inr b1, inl a1 => absurd (inlIsNotInr (sym a))
+    | inr b, inr b1 => {?}
+
+  \func inlIsNotInr {A B : \Type} {x : A} {y : B} (p : inl x = inr y) => transport (\lam t => \case t \with {
+    | inl x => \Sigma
+    | inr y => Empty
+  }) p ()
+}
 
 -- 11. Если B x является множеством, то \Pi (x : A) -> B x тоже является множеством.
 
@@ -126,5 +186,4 @@
 
 -- 12. Докажите, что если A является множеством, то List A также им является.
 
-\func List-isSet {A : \Type} (pA : isSet A) : isSet (List A)
-  => {?}
+\func List-isSet {A : \Type} (pA : isSet A) : isSet (List A) => {?}
